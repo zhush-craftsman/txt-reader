@@ -1,0 +1,11 @@
+// macOS files
+.DS_Store
+
+//python files
+__pycache__
+
+
+.history
+.vscode
+*.txt
+temp
