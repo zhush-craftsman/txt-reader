@@ -4,8 +4,8 @@ import locale
 
 
 # ################### 常量定义 Start ###################
-MAIN_WIN_WIDTH = 96
-MAIN_WIN_HEIGHT = 20
+MAIN_WIN_WIDTH = 60
+MAIN_WIN_HEIGHT = 16
 MAIN_X = 0
 MAIN_Y = 0
 # ################### 常量定义 End ###################
@@ -16,6 +16,10 @@ screen = None
 # -- Define the appearance of some interface elements
 hotkey_attr = curses.A_BOLD | curses.A_UNDERLINE
 menu_attr = curses.A_NORMAL
+
+
+def get_main_win_config():
+    return {'width': MAIN_WIN_WIDTH, 'height': MAIN_WIN_HEIGHT}
 
 
 # -- Create the topbar menu
@@ -53,8 +57,10 @@ def book_list_view():
     global screen
     s = screen.subwin(MAIN_WIN_HEIGHT-1-1, MAIN_WIN_WIDTH-1-1, 2, 1)
     s.box()
+
+    novels = novelmanager.getNovels()
     selected = 0
-    nlist = list(map(lambda novel: novel['name'], novelmanager.getNovels()))
+    nlist = list(map(lambda novel: novel['name'], novels))
     draw_book_list(s, selected, nlist)
     s.keypad(1)
     while 1:
@@ -71,15 +77,15 @@ def book_list_view():
                 selected = len(nlist) - 1
             draw_book_list(s, selected, nlist)
         elif k == 10:
-            return nlist[selected]
+            return novels[selected]
 
 
 def draw_book_content(win, lines):
     win.clear()
-    for i in range(len(lines)):
-        win.move(i+1, 0)
-        win.addnstr(lines[i], curses.COLS)
-    # win.addstr(''.join(lines), curses.COLS)
+    # for i in range(len(lines)):
+    #     win.move(i+1, 0)
+    #     win.addnstr(lines[i], curses.COLS)
+    win.addstr(lines, curses.COLS)
     win.refresh()
 
 
@@ -96,23 +102,23 @@ def book_content_view(book):
     contentWidth, contentHeight = viewWidth-1-1, viewHeight-1-1
     contentWin = s.subwin(contentHeight, contentWidth, contentBeginY, contentBeginX)
 
-    contentRow = contentHeight - 2
-    contentColumn = contentWidth - 2
-
-    bookIter = novelmanager.read_book(1, contentRow, contentColumn//2)
-    forward = None
+    paragraphIdx = book['current_paragraph_idx']
     while True:
         try:
-            lines = bookIter.send(forward)
-            draw_book_content(contentWin, lines)
+            paragraph = novelmanager.get_paragraph(paragraphIdx)
+            if not paragraph:
+                break
+            draw_book_content(contentWin, paragraph['content'])
+            novelmanager.update_current_Paragraph(book['id'], paragraphIdx)
+
             k = s.getch()
             if k == 261:
-                forward = 1
+                paragraphIdx += 1
             elif k == 260:
-                forward = -1
+                paragraphIdx -= 1
             elif k == ord('q'):
                 break
-        except StopIteration:
+        except Exception:
             break
 
 
@@ -136,6 +142,8 @@ def draw_main(stdscr):
     # Clear and refresh the screen for a blank canvas
     stdscr.clear()
     stdscr.refresh()
+
+    curses.curs_set(0)
 
     global screen
     screen = stdscr.subwin(MAIN_WIN_HEIGHT, MAIN_WIN_WIDTH, MAIN_Y, MAIN_X)
